@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap");
-
 * {
   box-sizing: border-box;
 }
@@ -8,7 +6,7 @@ body {
   margin: 0;
   background: #080b10;
   color: #e8edf3;
-  font-family: "Inter", sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 button,
@@ -62,14 +60,14 @@ textarea {
   display: block;
   margin-top: 3px;
   color: #687783;
-  font-family: "Space Mono", monospace;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 9px;
   letter-spacing: 1.5px;
 }
 
 .system-status {
   color: #8b9aa7;
-  font-family: "Space Mono", monospace;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 11px;
 }
 
@@ -124,7 +122,7 @@ textarea {
 .eyebrow {
   margin: 0 0 6px;
   color: #61717e;
-  font-family: "Space Mono", monospace;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 10px;
   letter-spacing: 2px;
 }
@@ -145,7 +143,7 @@ h2 {
   padding: 7px 10px;
   border: 1px solid #284633;
   color: #62d982;
-  font-family: "Space Mono", monospace;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 9px;
 }
 
@@ -226,7 +224,7 @@ textarea::placeholder {
 .result-title {
   display: flex;
   justify-content: space-between;
-  font-family: "Space Mono", monospace;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 10px;
   color: #657582;
 }
@@ -250,7 +248,7 @@ textarea::placeholder {
 }
 
 .action-box span {
-  font-family: "Space Mono", monospace;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 9px;
   color: #71818d;
 }
@@ -259,7 +257,7 @@ textarea::placeholder {
 
 .incident-count {
   color: #687985;
-  font-family: "Space Mono", monospace;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 10px;
 }
 
@@ -338,14 +336,14 @@ textarea::placeholder {
 }
 
 .severity {
-  font-family: "Space Mono", monospace;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 9px;
   font-weight: 700;
 }
 
 .time {
   color: #52616d;
-  font-family: "Space Mono", monospace;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 9px;
 }
 
@@ -374,7 +372,7 @@ footer {
   justify-content: space-between;
   padding: 15px 32px;
   color: #4e5c67;
-  font-family: "Space Mono", monospace;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 9px;
   letter-spacing: 1px;
 }
@@ -439,7 +437,7 @@ footer {
   margin-top: 18px;
   margin-bottom: 10px;
   color: #61717e;
-  font-family: "Space Mono", monospace;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 9px;
   letter-spacing: 2px;
 }
@@ -471,7 +469,7 @@ footer {
   padding: 7px 10px;
   border: 1px solid #394957;
   color: #9baab5;
-  font-family: "Space Mono", monospace;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 9px;
   letter-spacing: 1px;
 }
@@ -513,7 +511,7 @@ footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-family: "Space Mono", monospace;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 9px;
   color: #70818d;
   letter-spacing: 1px;
@@ -542,7 +540,7 @@ footer {
 }
 
 .source-box span {
-  font-family: "Space Mono", monospace;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 8px;
   color: #62737f;
   letter-spacing: 1px;
@@ -899,5 +897,318 @@ footer {
 
   .offline-map-label {
     font-size: 7px !important;
+  }
+}
+
+/* ============================================================
+   ARVION PUBLIC SHOWCASE / FIELD MODE / QR JOIN
+   ============================================================ */
+.public-showcase-banner{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;padding:11px 18px;border-bottom:1px solid rgba(255,255,255,.09);background:#111820;color:#b7c3cb;font-size:11px;text-align:center}.public-showcase-banner strong{color:#ffd27d;letter-spacing:.08em}.public-showcase-banner span{opacity:.72}.join-panel{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:22px;padding:18px 20px;border:1px solid rgba(255,255,255,.09);border-radius:14px;background:rgba(255,255,255,.025)}.join-panel h2{font-size:18px}.join-panel .description{margin:7px 0}.join-url{max-width:760px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:9px 11px;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:rgba(0,0,0,.15);font:9px "Space Mono",monospace;opacity:.7}.device-count{margin-top:8px;font:9px "Space Mono",monospace;color:#7df0a5}.join-qr-wrap{display:grid;justify-items:center;gap:7px;flex:0 0 130px}.join-qr-wrap img,.qr-placeholder{width:112px;height:112px;padding:6px;background:#fff;border-radius:8px}.qr-placeholder{display:grid;place-items:center;color:#111;font:800 13px "Space Mono",monospace;text-align:center}.join-qr-wrap>span{font:8px "Space Mono",monospace;opacity:.5}.notice-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.72);backdrop-filter:blur(7px)}.notice-modal{position:relative;width:min(520px,100%);padding:28px;border:1px solid #34434d;border-radius:16px;background:#0c1117;box-shadow:0 25px 80px rgba(0,0,0,.55)}.notice-close{position:absolute;right:13px;top:10px;border:0;background:transparent;color:#8796a0;font-size:26px;cursor:pointer}.notice-icon{font-size:25px}.notice-modal h2{margin:7px 0 9px;font-size:21px}.notice-modal>p:not(.eyebrow){color:#94a2ac;font-size:13px;line-height:1.65}.notice-box{display:grid;gap:5px;margin:17px 0;padding:13px;border-left:2px solid #d7a85b;background:#111820}.notice-box strong{font-size:11px}.notice-box span{font-size:11px;opacity:.58}.notice-contact,.notice-ok{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:9px 13px;border-radius:8px;font-size:10px;font-weight:800;letter-spacing:.05em;text-decoration:none;cursor:pointer}.notice-contact{border:1px solid rgba(125,240,165,.22);color:#8df0b0;background:rgba(125,240,165,.06)}.notice-ok{margin-left:8px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.07);color:#dce4ea}.field-mode-app{min-height:100vh}.field-shell{min-height:calc(100vh - 1px);display:grid;place-items:center;padding:18px;background:radial-gradient(circle at 50% 0%,rgba(55,85,105,.16),transparent 38%),#080b10}.field-device-card{width:min(560px,100%);padding:22px;border:1px solid #263640;border-radius:20px;background:#0c1117;box-shadow:0 20px 70px rgba(0,0,0,.35)}.field-topline{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}.field-eyebrow{font:700 9px "Space Mono",monospace;letter-spacing:.16em;color:#70828d}.field-topline h1{margin:7px 0 0;font-size:23px;letter-spacing:.04em}.field-connection{padding:6px 9px;border:1px solid rgba(255,255,255,.1);border-radius:999px;font:800 8px "Space Mono",monospace}.field-connection.online{color:#7df0a5;border-color:rgba(125,240,165,.2)}.field-connection.offline{color:#ffd27d}.field-subtitle{color:#7e8d97;font-size:12px;line-height:1.5}.hold-report{width:100%;min-height:145px;margin:16px 0;border:1px solid #344751;border-radius:16px;background:linear-gradient(145deg,#111a21,#0a1015);color:#dfe8ed;display:grid;place-items:center;align-content:center;gap:7px;cursor:pointer}.hold-report span{font-size:30px}.hold-report strong{font-size:15px;letter-spacing:.08em}.hold-report small{font-size:10px;opacity:.45}.hold-report.active{border-color:#d7a85b;box-shadow:0 0 30px rgba(215,168,91,.1)}.field-quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.field-quick-grid button{min-height:78px;border:1px solid rgba(255,255,255,.08);border-radius:11px;background:rgba(255,255,255,.025);color:inherit;cursor:pointer}.field-quick-grid button span{display:block;font-size:21px;margin-bottom:6px}.field-quick-grid button strong{font-size:10px}.field-textarea{height:105px;margin-top:12px}.field-actions{display:grid;grid-template-columns:110px 1fr;gap:8px;margin-top:8px}.field-actions select,.field-submit-btn{min-height:44px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#111820;color:inherit;padding:8px;font-weight:800}.field-submit-btn{cursor:pointer}.field-submit-btn:disabled{opacity:.4;cursor:not-allowed}.field-last-incident{margin-top:14px;padding:12px;border-left:2px solid #7df0a5;background:rgba(125,240,165,.035)}.field-last-incident span{font:8px "Space Mono",monospace;opacity:.45}.field-last-incident strong{display:block;margin-top:5px;font-size:12px}.field-last-incident p{margin:5px 0 0;font-size:10px;line-height:1.45;opacity:.58}@media(max-width:900px){.join-panel{grid-column:auto}.join-panel{flex-direction:column;align-items:stretch}.join-qr-wrap{flex-basis:auto}.join-qr-wrap img,.qr-placeholder{width:130px;height:130px}}@media(max-width:560px){.field-device-card{padding:16px;border-radius:15px}.field-topline{display:block}.field-connection{display:inline-flex;margin-top:10px}.field-quick-grid{grid-template-columns:repeat(2,1fr)}.field-actions{grid-template-columns:1fr}.notice-contact,.notice-ok{width:100%;margin:0 0 8px}.notice-modal{padding:22px}}
+/* ============================================================
+   ARVION FIELD DEVICE CONTROL
+   ============================================================ */
+
+.field-devices-panel {
+  margin-top: 18px;
+}
+
+.field-device-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.field-device-card-admin {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  padding: 15px;
+  border: 1px solid #263640;
+  border-radius: 12px;
+  background: #0a0f14;
+}
+
+.field-device-main {
+  min-width: 0;
+}
+
+.field-device-header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.field-device-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: #e2e9ed;
+}
+
+.field-device-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font: 800 8px "Space Mono", monospace;
+  letter-spacing: .05em;
+}
+
+.field-device-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.field-device-status.pending {
+  color: #ffd27d;
+  background: rgba(255, 210, 125, .07);
+  border: 1px solid rgba(255, 210, 125, .18);
+}
+
+.field-device-status.verified,
+.field-device-status.connected {
+  color: #7df0a5;
+  background: rgba(125, 240, 165, .06);
+  border: 1px solid rgba(125, 240, 165, .18);
+}
+
+.field-device-status.rejected {
+  color: #ff7777;
+  background: rgba(255, 85, 85, .06);
+  border: 1px solid rgba(255, 85, 85, .18);
+}
+
+.field-device-status.disconnected {
+  color: #8796a0;
+  background: rgba(255, 255, 255, .035);
+  border: 1px solid rgba(255, 255, 255, .08);
+}
+
+.field-device-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 15px;
+  margin-top: 9px;
+  color: #71818c;
+  font: 9px "Space Mono", monospace;
+}
+
+.field-device-meta strong {
+  color: #aab7bf;
+  font-weight: 600;
+}
+
+.field-device-id {
+  margin-top: 8px;
+  color: #566773;
+  font: 8px "Space Mono", monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field-device-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.device-action-btn {
+  min-height: 34px;
+  padding: 7px 11px;
+  border-radius: 7px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: #111820;
+  color: #cbd5da;
+  font: 800 9px "Space Mono", monospace;
+  cursor: pointer;
+}
+
+.device-action-btn:hover {
+  border-color: #536574;
+  background: #17212a;
+}
+
+.device-action-btn.verify {
+  border-color: rgba(125,240,165,.22);
+  color: #7df0a5;
+  background: rgba(125,240,165,.05);
+}
+
+.device-action-btn.reject {
+  border-color: rgba(255,119,119,.18);
+  color: #ff8585;
+  background: rgba(255,85,85,.04);
+}
+
+.device-action-btn.revoke {
+  border-color: rgba(255,210,125,.18);
+  color: #ffd27d;
+  background: rgba(255,210,125,.04);
+}
+
+.device-action-btn:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+.pending-device-highlight {
+  border-color: rgba(255,210,125,.28);
+  box-shadow: 0 0 0 1px rgba(255,210,125,.04);
+}
+
+.device-empty-state {
+  padding: 35px 20px;
+  text-align: center;
+  border: 1px dashed #293741;
+  border-radius: 12px;
+  color: #60717c;
+  background: rgba(255,255,255,.012);
+}
+
+.device-empty-state strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #8797a1;
+  font-size: 12px;
+}
+
+.device-empty-state span {
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+
+/* ============================================================
+   FIELD VERIFICATION NOTICE
+   ============================================================ */
+
+.verification-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 11px 13px;
+  border: 1px solid rgba(255,210,125,.18);
+  border-radius: 9px;
+  background: rgba(255,210,125,.035);
+  color: #a99572;
+  font: 9px "Space Mono", monospace;
+}
+
+.verification-banner strong {
+  color: #ffd27d;
+}
+
+
+/* ============================================================
+   DEVICE SUMMARY STRIP
+   ============================================================ */
+
+.device-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.device-summary-item {
+  padding: 11px;
+  border: 1px solid #202d36;
+  border-radius: 9px;
+  background: #0a0f14;
+}
+
+.device-summary-item span {
+  display: block;
+  color: #596b76;
+  font: 8px "Space Mono", monospace;
+  letter-spacing: .08em;
+}
+
+.device-summary-item strong {
+  display: block;
+  margin-top: 5px;
+  color: #d7e0e5;
+  font-size: 17px;
+}
+
+
+/* ============================================================
+   CONNECTION INDICATORS
+   ============================================================ */
+
+.connection-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 8px "Space Mono", monospace;
+  color: #778791;
+}
+
+.connection-indicator::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #596873;
+}
+
+.connection-indicator.online {
+  color: #7df0a5;
+}
+
+.connection-indicator.online::before {
+  background: #7df0a5;
+  box-shadow: 0 0 9px rgba(125,240,165,.55);
+}
+
+.connection-indicator.pending {
+  color: #ffd27d;
+}
+
+.connection-indicator.pending::before {
+  background: #ffd27d;
+}
+
+
+/* ============================================================
+   RESPONSIVE FIELD DEVICES
+   ============================================================ */
+
+@media (max-width: 700px) {
+  .field-device-card-admin {
+    grid-template-columns: 1fr;
+  }
+
+  .field-device-actions {
+    justify-content: flex-start;
+  }
+
+  .device-summary-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .field-device-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .field-device-actions {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    width: 100%;
+  }
+
+  .device-action-btn {
+    width: 100%;
   }
 }

@@ -1,18 +1,3 @@
 {
-  "name": "server",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "cors": "^2.8.6",
-    "express": "^5.2.1",
-    "socket.io": "^4.8.4"
-  }
+  "name":"server","version":"1.0.0","description":"ARVION offline AI control room backend","main":"server.js","scripts":{"start":"node server.js","dev":"node --watch server.js"},"keywords":["arvion","offline-ai","ollama","socket.io"],"author":"Sandarsh Jeriopothula","license":"ISC","type":"commonjs","dependencies":{"cors":"^2.8.6","express":"^5.2.1","socket.io":"^4.8.4"}
 }

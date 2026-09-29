@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import "./App.css";
 
-const API = 'http://172.18.3.152:5000';
-
-const socket = io(API);
+const LOCAL_HOST_PATTERN = /^(localhost|127\.0.0.1|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.)/;
+const isPublicShowcase = typeof window !== "undefined" && !LOCAL_HOST_PATTERN.test(window.location.hostname);
+const API = isPublicShowcase
+  ? null
+  : `${window.location.protocol}//${window.location.hostname}:5000`;
+const socket = API ? io(API, { autoConnect: true, transports: ["websocket", "polling"] }) : null;
 
 /* ============================================================
    LOCAL OFFLINE EVENT MAP
@@ -13,13 +16,18 @@ const socket = io(API);
    No internet required
    ============================================================ */
 
-function LocalEventMap({ incidents }) {
+function LocalEventMap({ incidents, zoneMemory = [] }) {
   const positions = {
     "Gate 1": { x: 12, y: 28 },
     "Gate 2": { x: 88, y: 28 },
     "Gate 3": { x: 50, y: 88 },
     "Medical Zone": { x: 78, y: 72 },
     "Control Center": { x: 50, y: 50 },
+  };
+
+  const getZoneRisk = (zone) => {
+    const match = zoneMemory.find((item) => item.zone === zone);
+    return match?.risk || "LOW";
   };
 
   return (
@@ -42,23 +50,37 @@ function LocalEventMap({ incidents }) {
       <div className="zone zone-a">ZONE A</div>
       <div className="zone zone-b">ZONE B</div>
 
-      {Object.entries(positions).map(([name, pos]) => (
-        <div
-          key={name}
-          className={`map-location ${
-            name === "Control Center"
-              ? "control-location"
-              : ""
-          }`}
-          style={{
-            left: `${pos.x}%`,
-            top: `${pos.y}%`,
-          }}
-        >
-          <div className="location-dot" />
-          <span>{name}</span>
-        </div>
-      ))}
+      {Object.entries(positions).map(([name, pos]) => {
+        const risk = getZoneRisk(name);
+
+        return (
+          <div
+            key={name}
+            className={`map-location ${
+              name === "Control Center"
+                ? "control-location"
+                : ""
+            }`}
+            style={{
+              left: `${pos.x}%`,
+              top: `${pos.y}%`,
+            }}
+          >
+            <div
+              className={`location-dot risk-${risk.toLowerCase()}`}
+            />
+
+            <span>
+              {name}
+              {name !== "Control Center" && (
+                <small className={`map-risk-label risk-${risk.toLowerCase()}`}>
+                  {risk}
+                </small>
+              )}
+            </span>
+          </div>
+        );
+      })}
 
       {incidents.map((item) => {
         const location =
@@ -76,15 +98,18 @@ function LocalEventMap({ incidents }) {
 
         const pos = positions[match];
 
+        const severity =
+          (item.severity || "MEDIUM").toUpperCase();
+
         return (
           <div
             key={`incident-${item.id}`}
-            className="incident-marker"
+            className={`incident-marker incident-${severity.toLowerCase()}`}
             style={{
               left: `${pos.x}%`,
               top: `${pos.y}%`,
             }}
-            title={`${item.severity} — ${item.type}`}
+            title={`${severity} — ${item.type}`}
           >
             !
           </div>
@@ -159,6 +184,25 @@ function App() {
   const [demoRunning, setDemoRunning] = useState(false);
   const [demoStep, setDemoStep] = useState(0);
   const [ollamaOnline, setOllamaOnline] = useState(null);
+  const [publicNotice, setPublicNotice] = useState(null);
+  const [fieldMode, setFieldMode] = useState(false);
+  const [joinQr, setJoinQr] = useState("");
+  const [connectedDevices, setConnectedDevices] = useState([]);
+  const [deviceName, setDeviceName] = useState("Control Center");
+  const [fieldProfile, setFieldProfile] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("arvionFieldProfile") || "null");
+    } catch {
+      return null;
+    }
+  });
+  const [fieldJoinStatus, setFieldJoinStatus] = useState("NOT_REGISTERED");
+  const [fieldJoinError, setFieldJoinError] = useState("");
+  const [fieldJoinLoading, setFieldJoinLoading] = useState(false);
+  const [fieldJoinToken, setFieldJoinToken] = useState("");
+  const [fieldDevices, setFieldDevices] = useState([]);
+  const [serverHealth, setServerHealth] = useState(null);
+  const [joinUrl, setJoinUrl] = useState("");
 
   const addIncidentLog = (incidentId, action, detail = "") => {
     setIncidentLogs((prev) => ({
@@ -250,47 +294,361 @@ function App() {
     );
 
   /* ============================================================
+     LOCAL / PUBLIC MODE + QR JOIN
+     ============================================================ */
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isField = params.get("mode") === "field";
+    const token = params.get("token") || "";
+
+    setFieldMode(isField);
+    setFieldJoinToken(token);
+
+    if (isField) {
+      setDeviceName(fieldProfile?.name || "Field Device");
+      if (fieldProfile?.status) {
+        setFieldJoinStatus(fieldProfile.status);
+      }
+    } else {
+      setDeviceName("Control Center");
+    }
+  }, [fieldProfile]);
+
+  useEffect(() => {
+    if (isPublicShowcase || !API || fieldMode) return;
+
+    let cancelled = false;
+
+    const loadJoinInfo = async () => {
+      try {
+        const response = await fetch(`${API}/api/join`);
+        const data = await response.json();
+
+        if (!data.success) throw new Error(data.error || "Unable to get join information");
+
+        const url = data.joinUrl || `${window.location.origin}${window.location.pathname}?mode=field&token=${data.token}`;
+
+        if (!cancelled) {
+          setJoinUrl(url);
+          setFieldJoinToken(data.token || "");
+        }
+
+        const { default: QRCode } = await import("qrcode");
+        const dataUrl = await QRCode.toDataURL(url, { margin: 1, width: 220 });
+
+        if (!cancelled) setJoinQr(dataUrl);
+      } catch (error) {
+        console.error("Unable to generate ARVION join QR:", error);
+        if (!cancelled) {
+          setJoinQr("");
+          setJoinUrl("");
+        }
+      }
+    };
+
+    loadJoinInfo();
+
+    return () => { cancelled = true; };
+  }, [fieldMode]);
+
+  /* ============================================================
      SOCKET.IO
      ============================================================ */
 
   useEffect(() => {
-    socket.on("connect", () => {
-      console.log(
-        "📡 Connected to ARVION live network"
-      );
-
-      setConnected(true);
-    });
-
-    socket.on("disconnect", () => {
-      console.log(
-        "📴 Disconnected from ARVION live network"
-      );
-
+    if (!socket) {
       setConnected(false);
-    });
+      return undefined;
+    }
 
-    socket.on("newIncident", (newIncident) => {
+    const onConnect = () => {
+      console.log("📡 Connected to ARVION live network");
+      setConnected(true);
+
+      if (fieldMode && fieldProfile?.deviceId) {
+        socket.emit("registerDevice", {
+          id: fieldProfile.deviceId,
+          name: fieldProfile.name,
+          role: fieldProfile.role,
+          team: fieldProfile.team,
+          mode: "FIELD",
+          joinedAt: fieldProfile.joinedAt || new Date().toISOString(),
+        });
+      } else if (!fieldMode) {
+        socket.emit("registerDevice", {
+          id: "CONTROL-CENTER",
+          name: "Control Center",
+          role: "COMMANDER",
+          team: "CONTROL ROOM",
+          mode: "CONTROL",
+          joinedAt: new Date().toISOString(),
+        });
+      }
+    };
+
+    const onDisconnect = () => {
+      console.log("📴 Disconnected from ARVION live network");
+      setConnected(false);
+    };
+
+    const onNewIncident = (newIncident) => {
       setIncidents((prev) => {
-        const exists = prev.some(
-          (item) => item.id === newIncident.id
-        );
-
+        const exists = prev.some((item) => item.id === newIncident.id);
         if (exists) return prev;
-
         return [newIncident, ...prev];
       });
-
       setIncident(newIncident);
       initializeIncidentLog(newIncident);
-    });
+    };
+
+    const onDeviceJoined = (device) => {
+      setConnectedDevices((prev) => {
+        const withoutOld = prev.filter((item) => item.id !== device.id);
+        return [...withoutOld, device];
+      });
+    };
+
+    const onDevicesUpdated = (devices) => {
+      setFieldDevices(Array.isArray(devices) ? devices : []);
+      if (!fieldMode) setConnectedDevices(Array.isArray(devices) ? devices : []);
+
+      if (fieldMode && fieldProfile?.deviceId) {
+        const own = devices?.find((item) => item.id === fieldProfile.deviceId);
+        if (own) {
+          setFieldJoinStatus(own.status);
+          setFieldProfile((prev) => prev ? ({ ...prev, status: own.status }) : prev);
+        }
+      }
+    };
+
+    const onFieldJoinRequest = (device) => {
+      setFieldDevices((prev) => {
+        const withoutOld = prev.filter((item) => item.id !== device.id);
+        return [...withoutOld, device];
+      });
+    };
+
+    const onDeviceUpdated = (device) => {
+      setFieldDevices((prev) => {
+        const withoutOld = prev.filter((item) => item.id !== device.id);
+        return [...withoutOld, device];
+      });
+
+      if (fieldMode && fieldProfile?.deviceId === device.id) {
+        setFieldJoinStatus(device.status);
+        setFieldProfile((prev) => prev ? ({ ...prev, status: device.status }) : prev);
+      }
+    };
+
+    const onVerificationResult = (result) => {
+      if (!fieldMode || !result?.device) return;
+
+      const nextStatus = result.approved
+        ? result.device.status
+        : result.revoked
+          ? "REVOKED"
+          : "REJECTED";
+
+      setFieldJoinStatus(nextStatus);
+      setFieldProfile((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev, status: nextStatus };
+        localStorage.setItem("arvionFieldProfile", JSON.stringify(next));
+        return next;
+      });
+    };
+
+    const onIncidentSnapshot = (items) => {
+      if (!Array.isArray(items)) return;
+      setIncidents(items);
+      if (items[0]) setIncident(items[0]);
+      items.forEach(initializeIncidentLog);
+    };
+
+    const onIncidentUpdated = (updated) => {
+      if (!updated?.id) return;
+      setIncidents((prev) => {
+        const exists = prev.some((item) => item.id === updated.id);
+        return exists
+          ? prev.map((item) => item.id === updated.id ? updated : item)
+          : [updated, ...prev];
+      });
+
+      setIncident((prev) => prev?.id === updated.id ? updated : prev);
+
+      if (updated.status) {
+        setIncidentStatuses((prev) => ({ ...prev, [updated.id]: updated.status }));
+      }
+
+      if (updated.assignedTeam?.id) {
+        setAssignedTeams((prev) => ({ ...prev, [updated.id]: updated.assignedTeam.id }));
+      }
+
+      if (Array.isArray(updated.timeline)) {
+        setIncidentLogs((prev) => ({
+          ...prev,
+          [updated.id]: updated.timeline.map((log) => ({
+            id: log.id || `${updated.id}-${log.time}`,
+            time: log.time,
+            action: log.action,
+            detail: log.detail || "",
+          })),
+        }));
+      }
+    };
+
+    const onDeviceLeft = (device) => {
+      setConnectedDevices((prev) => prev.map((item) => item.id === device.id ? device : item));
+      setFieldDevices((prev) => prev.map((item) => item.id === device.id ? device : item));
+    };
+
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    socket.on("newIncident", onNewIncident);
+    socket.on("deviceJoined", onDeviceJoined);
+    socket.on("devicesUpdated", onDevicesUpdated);
+    socket.on("fieldJoinRequest", onFieldJoinRequest);
+    socket.on("deviceUpdated", onDeviceUpdated);
+    socket.on("verificationResult", onVerificationResult);
+    socket.on("incidentSnapshot", onIncidentSnapshot);
+    socket.on("incidentUpdated", onIncidentUpdated);
+    socket.on("deviceLeft", onDeviceLeft);
+
+    if (socket.connected) onConnect();
 
     return () => {
-      socket.off("connect");
-      socket.off("disconnect");
-      socket.off("newIncident");
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.off("newIncident", onNewIncident);
+      socket.off("deviceJoined", onDeviceJoined);
+      socket.off("devicesUpdated", onDevicesUpdated);
+      socket.off("fieldJoinRequest", onFieldJoinRequest);
+      socket.off("deviceUpdated", onDeviceUpdated);
+      socket.off("verificationResult", onVerificationResult);
+      socket.off("incidentSnapshot", onIncidentSnapshot);
+      socket.off("incidentUpdated", onIncidentUpdated);
+      socket.off("deviceLeft", onDeviceLeft);
     };
-  }, []);
+  }, [deviceName, fieldMode, fieldProfile?.deviceId, fieldProfile?.name, fieldProfile?.role, fieldProfile?.team]);
+
+  const registerFieldDevice = async (event) => {
+    event?.preventDefault();
+
+    if (!API) {
+      setPublicNotice("analyze");
+      return;
+    }
+
+    const form = new FormData(event.currentTarget);
+    const name = String(form.get("name") || "").trim();
+    const role = String(form.get("role") || "").trim();
+    const team = String(form.get("team") || "").trim();
+
+    if (!name || !role || !team) {
+      setFieldJoinError("Name, role and team are required.");
+      return;
+    }
+
+    setFieldJoinLoading(true);
+    setFieldJoinError("");
+
+    const deviceId = fieldProfile?.deviceId || `FIELD-${crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
+    const profile = {
+      deviceId,
+      name,
+      role,
+      team,
+      status: "PENDING",
+      joinedAt: fieldProfile?.joinedAt || new Date().toISOString(),
+    };
+
+    try {
+      const response = await fetch(`${API}/api/devices/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: fieldJoinToken,
+          deviceId,
+          name,
+          role,
+          team,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || "Registration failed.");
+      }
+
+      const saved = {
+        ...profile,
+        status: data.device?.status || "PENDING",
+      };
+
+      localStorage.setItem("arvionFieldProfile", JSON.stringify(saved));
+      setFieldProfile(saved);
+      setFieldJoinStatus(saved.status);
+
+      if (saved.status === "VERIFIED" || saved.status === "CONNECTED") {
+        setFieldJoinStatus("CONNECTED");
+      }
+    } catch (error) {
+      setFieldJoinError(error.message);
+    } finally {
+      setFieldJoinLoading(false);
+    }
+  };
+
+  const refreshDevices = async () => {
+    if (!API || fieldMode) return;
+
+    try {
+      const response = await fetch(`${API}/api/devices`);
+      const data = await response.json();
+      if (data.success) setFieldDevices(data.devices || []);
+    } catch (error) {
+      console.error("Device refresh failed:", error);
+    }
+  };
+
+  const verifyFieldDevice = async (id) => {
+    if (!API) return;
+    try {
+      await fetch(`${API}/api/devices/${encodeURIComponent(id)}/verify`, { method: "POST" });
+      refreshDevices();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const rejectFieldDevice = async (id) => {
+    if (!API) return;
+    try {
+      await fetch(`${API}/api/devices/${encodeURIComponent(id)}/reject`, { method: "POST" });
+      refreshDevices();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const revokeFieldDevice = async (id) => {
+    if (!API) return;
+    try {
+      await fetch(`${API}/api/devices/${encodeURIComponent(id)}/revoke`, { method: "POST" });
+      refreshDevices();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const disconnectFieldProfile = () => {
+    localStorage.removeItem("arvionFieldProfile");
+    setFieldProfile(null);
+    setFieldJoinStatus("NOT_REGISTERED");
+    setFieldJoinError("");
+  };
 
   /* ============================================================
      VOICE RECOGNITION
@@ -388,6 +746,16 @@ function App() {
   const analyzeIncident = async () => {
     if (!report.trim()) return;
 
+    if (isPublicShowcase || !API) {
+      setPublicNotice("analyze");
+      return;
+    }
+
+    if (fieldMode && (!fieldProfile?.deviceId || !["VERIFIED", "CONNECTED"].includes(fieldJoinStatus))) {
+      setFieldJoinError("This field device must be verified by the control room before reporting.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -400,6 +768,16 @@ function App() {
           },
           body: JSON.stringify({
             report,
+            deviceId: fieldMode ? fieldProfile?.deviceId : "CONTROL-CENTER",
+            reporter: fieldMode ? {
+              name: fieldProfile?.name,
+              role: fieldProfile?.role,
+              team: fieldProfile?.team,
+            } : {
+              name: "Control Center",
+              role: "COMMANDER",
+              team: "CONTROL ROOM",
+            },
           }),
         }
       );
@@ -432,6 +810,11 @@ function App() {
 
   const askArvion = async () => {
     if (!question.trim()) return;
+
+    if (isPublicShowcase || !API) {
+      setPublicNotice("rag");
+      return;
+    }
 
     setAsking(true);
     setAnswer(null);
@@ -483,6 +866,20 @@ function App() {
     setQuestion(text);
   };
 
+  const submitFieldReport = (text) => {
+    const value = text.trim();
+    if (!value) return;
+    setReport(value);
+    if (!isPublicShowcase && API) {
+      setTimeout(() => {
+        const button = document.querySelector(".field-submit-btn");
+        if (button) button.click();
+      }, 0);
+    } else {
+      setPublicNotice("analyze");
+    }
+  };
+
   /* ============================================================
      HELPERS
      ============================================================ */
@@ -504,18 +901,17 @@ function App() {
     let active = true;
 
     const checkOllama = async () => {
+      if (isPublicShowcase) {
+        if (active) setOllamaOnline(null);
+        return;
+      }
       try {
-        const response = await fetch(
-          "http://localhost:11434/api/tags",
-          {
-            method: "GET",
-          }
-        );
+        const response = await fetch(`${API}/api/health`);
+        const data = await response.json();
 
         if (active) {
-          setOllamaOnline(
-            response.ok
-          );
+          setOllamaOnline(Boolean(data?.health?.ollama));
+          setServerHealth(data?.health || null);
         }
       } catch {
         if (active) {
@@ -526,10 +922,19 @@ function App() {
 
     checkOllama();
 
+    const timer = setInterval(checkOllama, 10000);
+
     return () => {
+      clearInterval(timer);
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (fieldMode || isPublicShowcase) return undefined;
+    refreshDevices();
+    return undefined;
+  }, [fieldMode]);
 
   /* ============================================================
      DEMO MODE
@@ -1041,8 +1446,155 @@ function App() {
      ============================================================ */
 
   return (
-    <div className="app">
+    <div className={`app ${fieldMode ? "field-mode-app" : ""}`}>
 
+      {fieldMode ? (
+        <main className="field-shell">
+          {(!fieldProfile || ["NOT_REGISTERED", "REJECTED", "REVOKED"].includes(fieldJoinStatus)) ? (
+            <section className="field-device-card field-registration-card">
+              <div className="field-topline">
+                <div>
+                  <span className="field-eyebrow">ARVION FIELD</span>
+                  <h1>JOIN FIELD NETWORK</h1>
+                </div>
+                <span className="field-connection offline">● PENDING ACCESS</span>
+              </div>
+
+              <p className="field-subtitle">
+                Register this device with the local ARVION control room. Access is granted only after commander verification.
+              </p>
+
+              <form className="field-registration-form" onSubmit={registerFieldDevice}>
+                <label>VOLUNTEER NAME<input name="name" defaultValue={fieldProfile?.name || ""} placeholder="Your name" autoComplete="name" /></label>
+                <label>ROLE<input name="role" defaultValue={fieldProfile?.role || ""} placeholder="Volunteer / Security / Medical" /></label>
+                <label>TEAM<input name="team" defaultValue={fieldProfile?.team || ""} placeholder="Security Alpha / Medical Team" /></label>
+                {fieldJoinError && <div className="field-error">{fieldJoinError}</div>}
+                <button className="field-submit-btn" type="submit" disabled={fieldJoinLoading}>
+                  {fieldJoinLoading ? "SENDING REQUEST..." : "REQUEST FIELD ACCESS →"}
+                </button>
+              </form>
+
+              <div className="field-device-note">
+                <strong>HUMAN VERIFICATION</strong>
+                <span>Your request will appear in the ARVION Command Center. A commander must verify this device before it can report incidents.</span>
+              </div>
+            </section>
+          ) : ["PENDING", "DISCONNECTED"].includes(fieldJoinStatus) ? (
+            <section className="field-device-card field-pending-card">
+              <div className="field-topline">
+                <div>
+                  <span className="field-eyebrow">ARVION FIELD</span>
+                  <h1>WAITING FOR VERIFICATION</h1>
+                </div>
+                <span className="field-connection offline">● {fieldJoinStatus}</span>
+              </div>
+
+              <div className="field-profile-summary">
+                <strong>{fieldProfile.name}</strong>
+                <span>{fieldProfile.role} · {fieldProfile.team}</span>
+                <small>DEVICE ID · {fieldProfile.deviceId}</small>
+              </div>
+
+              <div className="field-waiting-box">
+                <div className="field-waiting-dot">●</div>
+                <strong>{fieldJoinStatus === "DISCONNECTED" ? "LOCAL CONNECTION LOST" : "REQUEST SENT TO COMMAND CENTER"}</strong>
+                <p>{fieldJoinStatus === "DISCONNECTED" ? "Reconnect to the same local network. Your verified device identity is retained." : "The commander must verify this device before field reporting is enabled."}</p>
+              </div>
+
+              <button type="button" className="field-secondary-btn" onClick={disconnectFieldProfile}>CHANGE DEVICE / VOLUNTEER</button>
+            </section>
+          ) : (
+          <section className="field-device-card">
+            <div className="field-topline">
+              <div>
+                <span className="field-eyebrow">ARVION FIELD</span>
+                <h1>FIELD REPORTING UNIT</h1>
+              </div>
+              <span className={`field-connection ${connected ? "online" : "offline"}`}>
+                ● {connected ? "CONNECTED" : "LOCAL NETWORK"}
+              </span>
+            </div>
+
+            <p className="field-subtitle">
+              Walkie-talkie style incident reporting for volunteers. No public internet required.
+            </p>
+
+            <button
+              className={`hold-report ${listening ? "active" : ""}`}
+              onClick={startVoiceRecognition}
+              type="button"
+            >
+              <span>{listening ? "●" : "🎙"}</span>
+              <strong>{listening ? "LISTENING..." : "VOICE REPORT"}</strong>
+              <small>{listening ? "Speak clearly" : "Tap and report an incident"}</small>
+            </button>
+
+            <div className="field-quick-grid">
+              {[
+                ["🚨", "Crowd", "Crowd pressure near Gate 3."],
+                ["⚕", "Medical", "Medical emergency reported near the medical zone."],
+                ["🔥", "Fire", "Fire or smoke reported near the event area."],
+                ["🚪", "Exit", "Emergency exit is blocked."],
+              ].map(([icon, label, text]) => (
+                <button key={label} type="button" onClick={() => submitFieldReport(text)}>
+                  <span>{icon}</span>
+                  <strong>{label}</strong>
+                </button>
+              ))}
+            </div>
+
+            <textarea
+              className="field-textarea"
+              value={report}
+              onChange={(e) => setReport(e.target.value)}
+              placeholder="Describe what you see..."
+            />
+
+            <div className="field-actions">
+              <select value={voiceLanguage} onChange={(e) => setVoiceLanguage(e.target.value)}>
+                <option value="en-IN">English</option>
+                <option value="hi-IN">Hindi</option>
+                <option value="te-IN">Telugu</option>
+              </select>
+              <button className="field-submit-btn" onClick={analyzeIncident} disabled={loading || !report.trim()}>
+                {loading ? "SENDING..." : "SEND TO CONTROL →"}
+              </button>
+            </div>
+
+            {incident && (
+              <div className="field-last-incident">
+                <span>LAST LOCAL RESPONSE</span>
+                <strong>{formatType(incident.type)} · {incident.severity}</strong>
+                <p>{incident.location} — {incident.description}</p>
+              </div>
+            )}
+
+            <div className="field-profile-summary field-live-profile">
+              <strong>{fieldProfile?.name}</strong>
+              <span>{fieldProfile?.role} · {fieldProfile?.team}</span>
+              <small>DEVICE ID · {fieldProfile?.deviceId} · {fieldJoinStatus}</small>
+            </div>
+
+            <div className="field-my-reports">
+              <div className="field-section-title">MY REPORTS</div>
+              {(incidents.filter((item) => item.reporterDeviceId === fieldProfile?.deviceId).slice(0, 5)).length === 0 ? (
+                <p>No reports from this device yet.</p>
+              ) : (
+                incidents.filter((item) => item.reporterDeviceId === fieldProfile?.deviceId).slice(0, 5).map((item) => (
+                  <div className="field-report-row" key={item.id}>
+                    <div><strong>{formatType(item.type)}</strong><span>{item.location}</span></div>
+                    <b>{getIncidentStatus(item.id)}</b>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <button type="button" className="field-secondary-btn" onClick={disconnectFieldProfile}>CHANGE VOLUNTEER / DEVICE</button>
+          </section>
+          )}
+        </main>
+      ) : (
+      <>
       {/* ======================================================
           HEADER
           ====================================================== */}
@@ -1090,11 +1642,138 @@ function App() {
       </header>
 
 
+      {isPublicShowcase && (
+        <div className="public-showcase-banner">
+          <strong>⚠️ PUBLIC SHOWCASE</strong>
+          <span>Online AI mode is currently under development. Full AI + RAG runs locally with Ollama + Qwen 2.5.</span>
+        </div>
+      )}
+
       {/* ======================================================
           DASHBOARD
           ====================================================== */}
 
       <main className="dashboard">
+
+        {!isPublicShowcase && (
+          <section className="join-panel">
+            <div>
+              <p className="eyebrow">DEVICE NETWORK</p>
+              <h2>Join ARVION Field</h2>
+              <p className="description">Connect volunteers to this local control node. Scan the QR from a phone connected to the same Wi-Fi hotspot.</p>
+              <div className="join-url">{joinUrl || "Loading local join URL..."}</div>
+              <div className="device-count">● {fieldDevices.filter((item) => ["VERIFIED", "CONNECTED"].includes(item.status)).length} VERIFIED FIELD DEVICE{fieldDevices.filter((item) => ["VERIFIED", "CONNECTED"].includes(item.status)).length === 1 ? "" : "S"}</div>
+            </div>
+            <div className="join-qr-wrap">
+              {joinQr ? <img src={joinQr} alt="Scan to join ARVION Field" /> : <div className="qr-placeholder">QR<br/>READY</div>}
+              <span>SCAN TO JOIN</span>
+            </div>
+          </section>
+        )}
+
+        {!isPublicShowcase && (
+          <section className="field-devices-panel">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">ACCESS CONTROL</p>
+                <h2>Field Devices</h2>
+              </div>
+              <div className="device-count">{fieldDevices.length} REGISTERED</div>
+            </div>
+            <p className="description">
+              Commander verification is required before a volunteer can submit incidents.
+            </p>
+
+            {fieldDevices.filter((item) => item.mode === "FIELD").length === 0 ? (
+              <div className="device-empty-state">
+                <strong>No field devices have requested access yet.</strong>
+                <span>Scan the QR code above from a phone connected to the same local network.</span>
+              </div>
+            ) : (
+              <>
+                <div className="device-summary-strip">
+                  <div className="device-summary-item">
+                    <span>PENDING</span>
+                    <strong>{fieldDevices.filter((item) => item.mode === "FIELD" && item.status === "PENDING").length}</strong>
+                  </div>
+                  <div className="device-summary-item">
+                    <span>VERIFIED</span>
+                    <strong>{fieldDevices.filter((item) => item.mode === "FIELD" && ["VERIFIED", "CONNECTED"].includes(item.status)).length}</strong>
+                  </div>
+                  <div className="device-summary-item">
+                    <span>CONNECTED</span>
+                    <strong>{fieldDevices.filter((item) => item.mode === "FIELD" && item.status === "CONNECTED").length}</strong>
+                  </div>
+                  <div className="device-summary-item">
+                    <span>OFFLINE</span>
+                    <strong>{fieldDevices.filter((item) => item.mode === "FIELD" && item.status === "DISCONNECTED").length}</strong>
+                  </div>
+                </div>
+
+                <div className="field-device-list">
+                  {fieldDevices.filter((item) => item.mode === "FIELD").map((device) => (
+                    <div
+                      className={`field-device-card-admin ${device.status === "PENDING" ? "pending-device-highlight" : ""}`}
+                      key={device.id}
+                    >
+                      <div className="field-device-main">
+                        <div className="field-device-header">
+                          <span className="field-device-name">{device.name}</span>
+                          <span className={`field-device-status ${device.status?.toLowerCase()}`}>
+                            {device.status}
+                          </span>
+                        </div>
+
+                        <div className="field-device-meta">
+                          <span>ROLE <strong>{device.role || "FIELD VOLUNTEER"}</strong></span>
+                          <span>TEAM <strong>{device.team || "UNASSIGNED"}</strong></span>
+                          <span className={`connection-indicator ${device.status === "CONNECTED" ? "online" : device.status === "PENDING" ? "pending" : ""}`}>
+                            {device.status === "CONNECTED" ? "CONNECTED" : device.status}
+                          </span>
+                        </div>
+
+                        <div className="field-device-id">
+                          DEVICE ID · {device.id}
+                        </div>
+                      </div>
+
+                      <div className="field-device-actions">
+                        {device.status === "PENDING" && (
+                          <>
+                            <button
+                              type="button"
+                              className="device-action-btn verify"
+                              onClick={() => verifyFieldDevice(device.id)}
+                            >
+                              VERIFY
+                            </button>
+                            <button
+                              type="button"
+                              className="device-action-btn reject"
+                              onClick={() => rejectFieldDevice(device.id)}
+                            >
+                              REJECT
+                            </button>
+                          </>
+                        )}
+
+                        {["VERIFIED", "CONNECTED", "DISCONNECTED"].includes(device.status) && (
+                          <button
+                            type="button"
+                            className="device-action-btn revoke"
+                            onClick={() => revokeFieldDevice(device.id)}
+                          >
+                            REVOKE
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+        )}
 
         {/* ====================================================
             LEFT PANEL
@@ -1473,6 +2152,7 @@ function App() {
 
             <LocalEventMap
               incidents={incidents}
+              zoneMemory={zoneMemory}
             />
 
           </div>
@@ -2327,6 +3007,31 @@ function App() {
 
       </main>
 
+
+      </>
+      )}
+
+      {publicNotice && (
+        <div className="notice-backdrop" onClick={() => setPublicNotice(null)}>
+          <div className="notice-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="notice-close" onClick={() => setPublicNotice(null)}>×</button>
+            <div className="notice-icon">⚠</div>
+            <p className="eyebrow">{publicNotice === "rag" ? "LOCAL AI MODE REQUIRED" : "ONLINE AI MODE — UNDER DEVELOPMENT"}</p>
+            <h2>{publicNotice === "rag" ? "SOP intelligence runs locally" : "Public showcase mode"}</h2>
+            <p>
+              {publicNotice === "rag"
+                ? "ARVION SOP intelligence runs on the local control node using Ollama + Qwen 2.5. This public deployment is a UI and workflow showcase."
+                : "This public showcase demonstrates the ARVION interface and workflow. Full AI analysis runs locally using Ollama + Qwen 2.5 on the ARVION control node."}
+            </p>
+            <div className="notice-box">
+              <strong>For the complete offline demo</strong>
+              <span>Connect to an ARVION local control node.</span>
+            </div>
+            <a href="mailto:sandarsh666@gamil.com" className="notice-contact">📩 Request an Offline Deployment</a>
+            <button className="notice-ok" onClick={() => setPublicNotice(null)}>UNDERSTOOD</button>
+          </div>
+        </div>
+      )}
 
       {/* ======================================================
           FOOTER
@@ -3195,7 +3900,7 @@ function App() {
       <footer>
 
         <span>
-          ARVION v0.3
+          ARVION v0.4
         </span>
 
         <span>
